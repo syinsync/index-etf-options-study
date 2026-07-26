@@ -1,8 +1,8 @@
-wrds>=3.2
+# Runtime deps for the results-only dashboard (share_app.py) — what Streamlit
+# Community Cloud installs. Lean on purpose: no wrds/plotly needed here.
+streamlit>=1.30
 pandas>=2.0
 pyarrow>=14
 duckdb>=1.0
 numpy>=1.24
 matplotlib>=3.8
-plotly>=5.20
-streamlit>=1.30

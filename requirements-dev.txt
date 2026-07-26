@@ -1,0 +1,5 @@
+# Full local development deps: everything in requirements.txt PLUS the pieces
+# only needed to pull data from WRDS and run the full local dashboard (app.py).
+-r requirements.txt
+wrds>=3.2      # WRDS/OptionMetrics downloads (optfetch.download)
+plotly>=5.20   # interactive charts in the full app.py Explorer tab
