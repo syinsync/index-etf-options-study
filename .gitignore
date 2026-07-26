@@ -1,0 +1,35 @@
+# === Licensed WRDS/OptionMetrics data — NEVER commit ===
+data/
+
+# === Results ===
+# Safe to commit (aggregated strategy statistics — needed to deploy share_app):
+#   results/grid.parquet
+#   results/benchmark.parquet
+# Everything else in results/ is ignored by default:
+results/*
+!results/grid.parquet
+!results/benchmark.parquet
+# NOTE: results/premium_surface.parquet holds MEDIAN option premiums (derived from
+# licensed data — a gray area). It stays ignored. Only force-add it
+# (git add -f results/premium_surface.parquet) if your OptionMetrics terms allow.
+
+# Scratch / logs
+run_*.log
+streamlit.log
+share.log
+scratch*/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Never commit credentials
+.pgpass
+*pgpass*
+
+# Local Claude Code tooling settings
+.claude/

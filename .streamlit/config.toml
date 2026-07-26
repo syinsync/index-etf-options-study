@@ -1,0 +1,11 @@
+# Bright, warm beige — elegant light theme for the dashboard.
+[theme]
+base = "light"
+primaryColor = "#c19a5b"            # warm brighter gold accent
+backgroundColor = "#fdf9f0"         # bright warm cream page
+secondaryBackgroundColor = "#fffdf8"  # near-white cream (sidebar, cards)
+textColor = "#33302a"               # warm charcoal
+font = "serif"
+
+[browser]
+gatherUsageStats = false
