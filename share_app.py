@@ -19,11 +19,9 @@ import streamlit as st
 
 from optfetch import config as C
 from optfetch.grid import REGIMES, OTMS, DTES
-from optfetch.premium_surface import VOL_LABELS
 
 REWARD_CMAP = LinearSegmentedColormap.from_list("reward", ["#fcf8f0", "#bcd8bf", "#5f9e6a"])
 RISK_CMAP = LinearSegmentedColormap.from_list("risk", ["#fcf8f0", "#eec3b6", "#c1524a"])
-NEUTRAL_CMAP = LinearSegmentedColormap.from_list("neutral", ["#fcf8f0", "#e6cfa0", "#c19a5b"])
 RESULTS = C.PROJECT_ROOT / "results"
 
 GRID_METRICS = {
@@ -131,41 +129,13 @@ def cross_tab(grid, bench):
         st.info("No rows for this selection.")
 
 
-def premium_tab(surface):
-    st.subheader("Premium reference — what a put historically fetched")
-    c1, c2, c3 = st.columns(3)
-    ul = c1.selectbox("Underlying", sorted(surface["underlying"].unique()), key="p_ul")
-    vt = C.get_underlying(ul).vol_ticker
-    buckets = [b for b in VOL_LABELS if b in set(surface["vol_bucket"])]
-    vb = c2.selectbox(f"{vt} bucket", buckets, index=min(1, len(buckets) - 1))
-    price = c3.number_input(f"Today's {ul} price ($, optional)", 0.0, 100000.0, 0.0, 1.0)
-    sub = surface[(surface["underlying"] == ul) & (surface["vol_bucket"] == vb)]
-    if sub.empty:
-        st.info("No data for this selection."); return
-    pct = sub.pivot(index="dte", columns="otm", values="median_prem_pct").sort_index()
-    pct.index = [f"{d}d" for d in pct.index]
-    pct.columns = [f"{c}% OTM" for c in pct.columns]
-    st.markdown(f"**Median premium — % of forward** · {ul} · {vt} {vb}")
-    st.dataframe(pct.style.background_gradient(cmap=NEUTRAL_CMAP, axis=None).format("{:.2f}%"),
-                 use_container_width=True)
-    if price > 0:
-        usd = pct * price / 100.0
-        st.markdown(f"**≈ Dollar premium per share** at ${price:,.2f} (× 100 per contract)")
-        st.dataframe(usd.style.background_gradient(cmap=NEUTRAL_CMAP, axis=None).format("${:.2f}"),
-                     use_container_width=True)
-    st.caption("Historical medians 2011–2025, premium as % of forward (time-stable). "
-               "A rough pricing reference, not a live quote.")
-
-
 st.title("Weekly Short-Put Study — Results")
 st.caption("Aggregated results only (SPY · QQQ · IWM, 2011–2025). Cash-secured, "
            "1-week hold; DTE selects the maturity sold. No live backtesting here.")
 
-grid, bench, surface = load("grid"), load("benchmark"), load("premium_surface")
-tabs = st.tabs(["🔲 Regime × Grid", "🆚 Cross-underlying", "💵 Premium reference"])
+grid, bench = load("grid"), load("benchmark")
+tabs = st.tabs(["🔲 Regime × Grid", "🆚 Cross-underlying"])
 with tabs[0]:
     grid_tab(grid) if not grid.empty else st.info("Missing results/grid.parquet.")
 with tabs[1]:
     cross_tab(grid, bench) if not grid.empty and not bench.empty else st.info("Missing grid/benchmark parquet.")
-with tabs[2]:
-    premium_tab(surface) if not surface.empty else st.info("Missing results/premium_surface.parquet.")
