@@ -3,7 +3,22 @@
 SPX option-price pipeline over **WRDS / OptionMetrics IvyDB US**, for research on
 SPX & VIX and SPX index options. Pulls daily option chains once, stores them as
 partitioned parquet, and serves filtered slices (e.g. *30 DTE, ±5% OTM, past 5
-years*) through a single `get_options(...)` call backed by DuckDB.
+years*) through a single `get_options(...)` call backed by DuckDB. Includes a
+weekly short-put backtest (SPY/QQQ/IWM, 2011–2025) and two Streamlit dashboards.
+
+## ⚠️ Code is open; data is NOT included
+
+**This repository contains source code and *aggregated result statistics* only.**
+The underlying option/index data comes from **WRDS / OptionMetrics (IvyDB US)**,
+which is **licensed** and is **not** distributed here. To run the data pipeline
+(`optfetch.download`, the full local `app.py`) you need **your own WRDS /
+OptionMetrics subscription and access** (a `~/.pgpass` entry for WRDS). The
+`data/` directory is git-ignored and never committed; per-record option data must
+not be redistributed. Only the derived, aggregated results
+(`results/grid.parquet`, `results/benchmark.parquet`) are shared — these back the
+public results-only dashboard (`share_app.py`). Code is licensed **MIT**
+(see [LICENSE](LICENSE)); the data license is separate and governed by your
+OptionMetrics agreement.
 
 ## Design decisions
 

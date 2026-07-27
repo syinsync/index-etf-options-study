@@ -133,6 +133,45 @@ st.title("Weekly Short-Put Study — Results")
 st.caption("Aggregated results only (SPY · QQQ · IWM, 2011–2025). Cash-secured, "
            "1-week hold; DTE selects the maturity sold. No live backtesting here.")
 
+with st.expander("About this study & how to read it", expanded=False):
+    st.markdown("""
+**The strategy.** Systematically *sell* out-of-the-money **put options** on three
+index ETFs — **SPY** (S&P 500), **QQQ** (Nasdaq-100), **IWM** (Russell 2000) — and
+collect the premium. Every Friday we sell a put at a chosen distance below the
+market (**OTM %**) and a chosen maturity (**DTE**, days to expiry), **hold it for
+exactly one week**, then buy it back at its market price and sell a fresh one.
+So there's always **one position at a time**, and the *DTE knob just chooses which
+part of the term structure you sell* (7-DTE = expiry that week; 28-DTE = sell a
+4-week put, close it 3 weeks from expiry).
+
+**Sizing & returns.** *Cash-secured* — you set aside the strike as collateral, no
+leverage. Returns are compounded; Sharpe and vol are "raw" (no risk-free
+subtraction), and drawdowns are daily **mark-to-market** (they capture intra-week
+pain the weekly settle hides).
+
+**Benchmark.** Every strategy row is compared to simply **buying and holding** the
+same ETF over the same window — the honest baseline. Short-put selling typically
+earns *less in absolute terms* but with *much lower volatility and drawdown*, so
+the risk-adjusted (Sharpe) comparison is the interesting one.
+
+**Regimes.** Results are split into 2011–2015, 2016–2019, 2020–2025 (+ Full), so you
+can see how the best OTM/DTE "sweet spot" shifts between calm and stressed markets.
+
+**How to read the tabs**
+- **Regime × Grid** — pick an underlying + metric; each cell is one strategy config
+  (OTM row × DTE column), one table per regime. *Green = better, red = riskier.*
+- **Cross-underlying** — pick an OTM/DTE/regime; compare SPY vs QQQ vs IWM against
+  their buy-&-hold baselines (shaded rows).
+
+**Caveats.** End-of-day prices only (no intraday); ETF options are American but
+modeled as held-to-expiry cash settlement (fine for OTM puts); **no transaction
+costs or margin** yet; positions are held through weekends (intentional — that's
+where a lot of the premium/theta is). A research study, not investment advice.
+
+*Data: WRDS / OptionMetrics IvyDB US. The underlying option data is licensed and
+**not** included here — only aggregated result statistics are shown.*
+""")
+
 grid, bench = load("grid"), load("benchmark")
 tabs = st.tabs(["🔲 Regime × Grid", "🆚 Cross-underlying"])
 with tabs[0]:
