@@ -122,7 +122,9 @@ def download_underlying(
     C.ensure_dirs(ul.key)
     secids = ", ".join(str(s) for s in (ul.secid, *ul.extra_secids))
     q = (
-        "select secid, date, open, high, low, close, return "
+        # cfadj = cumulative split/adjustment factor (needed for single stocks;
+        # =1 for indices/ETFs). Used to split-adjust strikes/prices/levels.
+        "select secid, date, open, high, low, close, return, cfadj "
         f"from {C.OPTIONM_LIBRARY}.secprd "
         f"where secid in ({secids}) "
         f"and date >= '{start_year}-01-01' and date <= '{end_year}-12-31'"

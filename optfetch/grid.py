@@ -72,6 +72,8 @@ def compute_benchmarks(underlyings=UNDERLYINGS, regimes=REGIMES) -> pd.DataFrame
         u = pd.read_parquet(C.underlying_path(ul))
         u = u[u["secid"] == o.secid].copy()
         u["date"] = pd.to_datetime(u["date"])
+        if "cfadj" in u.columns:                   # split-adjust (present basis)
+            u["close"] = u["close"] * u["cfadj"] / u["cfadj"].max()
         u = u.sort_values("date")
         for rname, (s, e) in regimes.items():
             c = u[(u["date"] >= pd.Timestamp(s)) & (u["date"] <= pd.Timestamp(e))]

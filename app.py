@@ -40,8 +40,11 @@ MUTED = "#8a8172"
 LINE = "#ece2d0"        # soft warm hairline
 CREAM = "#fffdf8"
 
-# underlyings offered in the dashboard (SPX options dropped — SPY/QQQ only)
-DASH_UNDERLYINGS = [k for k in C.UNDERLYINGS if k != "SPX"]
+def available_underlyings() -> list[str]:
+    """Registry underlyings (excluding SPX) that actually have curated data on
+    disk — so an underlying still being downloaded never appears/crashes the UI."""
+    return [k for k in C.UNDERLYINGS if k != "SPX"
+            and glob.glob(str(C.curated_dir(k) / "year=*" / "options.parquet"))]
 
 st.set_page_config(page_title="Weekly Short-Put Backtest", layout="wide")
 
@@ -122,9 +125,13 @@ def buy_hold_benchmark(underlying: str, start: str, end: str) -> dict:
     """Buy-and-hold stats for the underlying over [start, end], as a comparison
     baseline: total/CAGR, weekly win rate & worst week, annualized vol, max DD."""
     ul = C.get_underlying(underlying)
+    if not C.underlying_path(underlying).exists():
+        return {}
     u = pd.read_parquet(C.underlying_path(underlying))
     u = u[u["secid"] == ul.secid].copy()
     u["date"] = pd.to_datetime(u["date"])
+    if "cfadj" in u.columns:                       # split-adjust (present basis)
+        u["close"] = u["close"] * u["cfadj"] / u["cfadj"].max()
     u = u[(u["date"] >= pd.to_datetime(start)) & (u["date"] <= pd.to_datetime(end))]
     u = u.sort_values("date")
     if len(u) < 2:
@@ -213,7 +220,11 @@ GRID_METRICS = {
 def render_explorer():
     with st.sidebar:
         st.header("Explorer settings")
-        underlying = st.selectbox("Underlying", DASH_UNDERLYINGS, index=0)
+        uls = available_underlyings()
+        if not uls:
+            st.error("No curated data found. Run download + build_curated first.")
+            return
+        underlying = st.selectbox("Underlying", uls, index=0)
         lo, hi = available_range(underlying)
         start = st.text_input("Start date", lo)
         end = st.text_input("End date", hi)
@@ -358,7 +369,7 @@ def render_cross_tab(grid: pd.DataFrame):
     st.caption(f"{otm}% OTM · {dte} DTE · {regime} — strategy vs buy & hold, per underlying.")
 
     rows = {}
-    for u in DASH_UNDERLYINGS:
+    for u in sorted(grid["underlying"].unique()):
         g = grid[(grid["underlying"] == u) & (grid["regime"] == regime)
                  & (grid["otm_pct"] == otm / 100.0) & (grid["dte"] == dte)]
         if len(g):

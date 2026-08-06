@@ -31,6 +31,15 @@ fwd AS (
     SELECT secid, CAST(date AS DATE) AS date, CAST(expiration AS DATE) AS expiration,
            amsettlement, forwardprice
     FROM read_parquet('{fwd_src}')
+),
+-- split adjustment: present-basis factor = cfadj / latest cfadj (per-day, from
+-- the underlying's secprd). =1 for indices/ETFs (constant cfadj); scales pre-split
+-- strikes/prices down for a stock that later split (e.g. a 4:1 split), so
+-- strike/spot/premium stay continuous across the split.
+cadj AS (
+    SELECT CAST(date AS DATE) AS date,
+           cfadj / max(cfadj) OVER () AS adj
+    FROM read_parquet('{ref_src}') WHERE secid = {secid}
 )
 SELECT
     o.secid,
@@ -41,24 +50,25 @@ SELECT
     CAST(o.exdate AS DATE)                         AS exdate,
     CAST(o.last_date AS DATE)                      AS last_date,
     o.cp_flag,
-    o.strike_price / {scale}                       AS strike,
-    f.forwardprice                                 AS forward_price,
+    o.strike_price / {scale} * COALESCE(c.adj, 1.0)  AS strike,
+    f.forwardprice * COALESCE(c.adj, 1.0)         AS forward_price,
     datediff('day', CAST(o.date AS DATE), CAST(o.exdate AS DATE)) AS dte,
     CASE WHEN f.forwardprice > 0
          THEN (o.strike_price / {scale}) / f.forwardprice END   AS fwd_moneyness,
-    o.best_bid,
-    o.best_offer,
-    (o.best_bid + o.best_offer) / 2.0              AS mid,
-    (o.best_offer - o.best_bid)                    AS spread,
+    o.best_bid * COALESCE(c.adj, 1.0)             AS best_bid,
+    o.best_offer * COALESCE(c.adj, 1.0)           AS best_offer,
+    (o.best_bid + o.best_offer) / 2.0 * COALESCE(c.adj, 1.0) AS mid,
+    (o.best_offer - o.best_bid) * COALESCE(c.adj, 1.0)       AS spread,
     o.volume,
     o.open_interest,
     o.impl_volatility,
     o.delta, o.gamma, o.vega, o.theta,
     o.optionid,
     o.cfadj,
+    COALESCE(c.adj, 1.0)                           AS split_adj,
     o.ss_flag,
     o.expiry_indicator,
-    -- quality flags (kept, not applied)
+    -- quality flags (raw values -> flags unaffected by the price scaling)
     (o.best_bid = 0)                               AS bid_zero,
     (o.best_bid > o.best_offer)                    AS crossed,
     (o.volume = 0 OR o.volume IS NULL)             AS zero_volume,
@@ -72,6 +82,7 @@ LEFT JOIN fwd f
  AND CAST(o.date AS DATE) = f.date
  AND CAST(o.exdate AS DATE) = f.expiration
  AND o.am_settlement = f.amsettlement
+LEFT JOIN cadj c ON CAST(o.date AS DATE) = c.date
 """
 
 
@@ -80,6 +91,7 @@ def build_year(year: int, *, underlying: str = "SPX",
     """Build the curated parquet for one year from its landing parquet."""
     src = C.raw_path(year, underlying)
     fwd_src = C.fwd_path(year, underlying)
+    ref_src = C.underlying_path(underlying)
     if not src.exists():
         print(f"[skip] no landing parquet for {year}: {src}")
         return 0
@@ -96,6 +108,8 @@ def build_year(year: int, *, underlying: str = "SPX",
             scale=C.STRIKE_SCALE,
             opt_src=str(src).replace("\\", "/"),
             fwd_src=str(fwd_src).replace("\\", "/"),
+            ref_src=str(ref_src).replace("\\", "/"),
+            secid=C.get_underlying(underlying).secid,
         )
         con.execute(
             f"COPY ({sql}) TO '{str(dst).replace(chr(92), '/')}' "

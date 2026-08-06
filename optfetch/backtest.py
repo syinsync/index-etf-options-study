@@ -32,11 +32,19 @@ FRIDAY = 4  # pandas: Monday=0 ... Friday=4
 
 
 def _underlying_ohlc(underlying: str = "SPX") -> pd.DataFrame:
-    """Underlying daily OHLC indexed by date, from the ref underlying parquet."""
+    """Underlying daily OHLC (split-adjusted) indexed by date, from the ref parquet.
+
+    OHLC is scaled by the present-basis split factor cfadj/max(cfadj) so it stays
+    continuous across splits and matches the curated (also-adjusted) strikes.
+    =1 for indices/ETFs.
+    """
     ul = C.get_underlying(underlying)
     u = pd.read_parquet(C.underlying_path(ul.key))
     u = u[u["secid"] == ul.secid].copy()
     u["date"] = pd.to_datetime(u["date"])
+    adj = (u["cfadj"] / u["cfadj"].max()) if "cfadj" in u.columns else 1.0
+    for col in ("open", "high", "low", "close"):
+        u[col] = u[col] * adj
     return u.set_index("date")[["open", "high", "low", "close"]].sort_index()
 
 
